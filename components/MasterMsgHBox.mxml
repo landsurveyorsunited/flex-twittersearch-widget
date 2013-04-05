@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox width="100%" styleName="messageBox" xmlns:mx="http://www.adobe.com/2006/mxml" >
+	<!--
+		This is a custom component for displaying status messages
+	-->
+	<mx:Script>
+		<![CDATA[
+			[Bindable] private var _msgText:String;
+			[Bindable] private var _tweetsCountDownTimer:String;
+			public function set msgText(msgText:String):void
+			{
+				_msgText = msgText;
+			}
+			
+			public function set timerText(tweetsCountDownTimer:String):void
+			{
+				_tweetsCountDownTimer = tweetsCountDownTimer;
+			} 			
+		]]>
+	</mx:Script>	
+	
+	<mx:Text id="tweetErrors" verticalCenter="true" textAlign="left"  text="{_msgText}"
+			 height="40" width="70%" toolTip="Nothing but status info here." />    
+	<mx:Text textAlign="right" text="{_tweetsCountDownTimer}" 
+			 id="tweetsCountDownTimer" paddingRight="2" width="30%" />            
+</mx:HBox>	

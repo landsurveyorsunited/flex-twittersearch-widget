@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<configuration>
+	<!-- DEPRECATED in v4 <proxyurl>http://localhost/flexviewer32/twitterproxy.php</proxyurl> -->
+	<oauthproxyurl>http://localhost/oauthproxy/</oauthproxyurl>
+	<cleartextlabel>Clear all</cleartextlabel>
+	<circletextlabel>Draw Search Area</circletextlabel>
+	<numberofresults>40</numberofresults>
+</configuration>

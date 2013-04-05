@@ -1,0 +1,1090 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+//  ESRI, Inc
+//  Copyright 2013 ESRI, Inc
+//  All Rights Reserved.
+//
+//  NOTICE: ESRI permits you to use, modify, and distribute this file
+//  in accordance with the terms of the license agreement accompanying it.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: Twitter Search - Disaster Monitoring Widget
+//Version: 4.0
+//Current Release Date: April 2013
+//Original Release Date: Jan. 20, 2010
+//ArcGIS API for Flex: v3.2
+//FlexViewer: v3.2
+//Adobe Flex: v4.7 
+//
+//This widget is designed to monitor tweets from a specific geographic area, and filter on specific
+//key words. It also has the ability to send tweets and geo-enabled tweets.
+// 
+//See readme.txt for list of changes.
+//
+//IMPORTANT USAGE NOTE: This application is subject to rate limiting by Twitter.
+//More details available here: https://dev.twitter.com/docs/api/1.1/get/search/tweets
+//
+//////////////////////////////////////////////////////////////////////////////// 
+-->
+<viewer:BaseWidget xmlns=		"com.esri.solutions.flexviewer.*" 
+			xmlns:mx=			"library://ns.adobe.com/flex/mx" 
+            xmlns:esri			="http://www.esri.com/2008/ags"
+            xmlns:symbol		="com.esri.ags.symbol.*" 
+			xmlns:mxeffects		="com.adobe.ac.mxeffects.*"
+			xmlns:fx			="http://ns.adobe.com/mxml/2009"
+			xmlns:s				="library://ns.adobe.com/flex/spark"		
+			xmlns:viewer        ="com.esri.viewer.*"	
+			xmlns:widgets		="widgets.*"			               
+            xmlns:components	="widgets.twittersearch.components.*"
+			xmlns:controllers="widgets.twittersearch.controllers.*"
+            xmlns:flash			="flash.text.*"  
+            x="400" 
+            y="300"
+            widgetConfigLoaded="init()"
+			creationComplete="creationComplete()">
+    
+    <fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+
+		s|List {
+			contentBackgroundAlpha: 0.6; /* 60% */
+		}		
+	</fx:Style>
+	<fx:Style source="widgets/twittersearch/styles/twittersearch.css" />		
+	<fx:Script>
+        <![CDATA[                
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.SpatialReference;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.utils.GraphicUtil;
+			import com.esri.ags.utils.WebMercatorUtil;
+			
+			import flash.utils.getTimer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.core.UIComponent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import widgets.twittersearch.controllers.MapClickDrawHandler;
+			import widgets.twittersearch.controllers.MasterMsgEvent;
+			import widgets.twittersearch.controllers.OpenCloseHandler;
+			import widgets.twittersearch.controllers.PointManager;
+			import widgets.twittersearch.controllers.RepeaterEventHandler;
+			import widgets.twittersearch.controllers.TweetDataManager;
+			import widgets.twittersearch.controllers.TwitterOauthFactory;
+			import widgets.twittersearch.events.TwitterOauthEvent;
+			import widgets.twittersearch.model.DrawCircle;
+			import widgets.twittersearch.model.LatLonProcessor;
+			import widgets.twittersearch.model.SetSearchResultsNum;
+			import widgets.twittersearch.model.TweetParser;
+                            
+            [Bindable] private var _tweetFeed:String;
+            [Bindable] private var _tweetEntries:ArrayCollection;
+            [Bindable] private var _myGraphicsLayer:GraphicsLayer;
+            [Bindable] private var _gL1:GraphicsLayer; 
+			[Bindable] private var _graphicsLayerCircle:GraphicsLayer;
+            [Bindable] private var _clearTextLabel:String;
+            [Bindable] private var _circleTextLabel:String;
+            [Bindable] private var _newTweetText:String;
+            [Bindable] private var _clickLocation:Object = {};
+            [Bindable] private var _circleToolRadius:Number;            
+            [Bindable] private var _loaderContext:LoaderContext;   
+            [Bindable] private var _textCount:String; //count remaining characters in tweet    
+            [Bindable] private var _resultsNumber:String = "";
+            [Bindable] private var _lastInfoSymbolGraphic:Graphic;
+            [Bindable] private var _graphicsArray:ArrayCollection;   
+			[Bindable] private var _map:Map;
+			[Bindable] private var _clickOnMapGraphic:Graphic = new Graphic(); //a temporary Graphic used when moving Graphics	
+			[Bindable] private var _clickOnMapGraphicLayer:GraphicsLayer;
+			[Bindable] private var _clickDrawBoolean:Boolean = false; //whether or not the draw button has been activated
+			private var _twitterOauthFactory:TwitterOauthFactory;
+			private var _tweetParser:TweetParser;
+			
+            [Embed('../images/i_stopsign_small.png')] 
+            private var _stopSignIcon:Class;
+            [Embed('../images/i_gosign_small.png')]
+            private var _goSignIcon:Class;
+            [Embed('../images/i_pointer_cursor.png')]
+            private var _pointerCursor:Class;
+			
+            private var _updateTimer:Timer;    
+            private var _baseTimer:int;              
+
+			private static const __VERSION__:String = "v4.0";             
+			//private static const _TWITTER_SEARCH_URL:String = "http://search.twitter.com/search.json";
+            //private static const _TWITTER_SENDROOT_URL:String = "http://twitter.com/statuses/update.xml?status=";
+            //private static const _TWITTER_VERIFY_URL:String = "http://twitter.com/account/verify_credentials.xml";
+			private static const _ICON_URL:String = "assets/images/";		
+			private static const _INTERNAL_ICON_URL:String = "widgets/twittersearch/images/";
+            
+            //To modify: Close browser, change <proxyurl> in TwitterSearch.xml. New settings take effect next time browser is launched.
+            //[Bindable] private var _PROXY_URL:String;  //deprecated v4
+			[Bindable] private var _tdm:TweetDataManager;
+			[Bindable] private var _OAUTH_PROXY_URL:String;
+            
+            private function init():void
+            {   								
+				//Create the primary GraphicsLayer
+                _myGraphicsLayer = new GraphicsLayer(); 
+                map.addLayer(_myGraphicsLayer);     
+
+				//GraphicsLayer just for the circle
+				_graphicsLayerCircle = new GraphicsLayer();
+				map.addLayer(_graphicsLayerCircle);
+				
+				//For drawing the 'click on map' text
+				_clickOnMapGraphicLayer = new GraphicsLayer();
+				map.addLayer(_clickOnMapGraphicLayer);
+				
+				//GraphicsLayer for managing InfoSymbols
+				_gL1 = new GraphicsLayer();
+				map.addLayer(_gL1); 				
+                
+                //This initiates the clustering functionality
+                map.addEventListener(ZoomEvent.ZOOM_END,zoomEnd);
+				
+				if (configXML)
+				{
+					//Configuration settings and labels
+					//_PROXY_URL = configXML.proxyurl || "You must specific a proxy!"; //deprecated in v4 
+					_OAUTH_PROXY_URL = configXML.oauthproxyurl || "You must specify an oauth proxy!";
+					_clearTextLabel = configXML.cleartextlabel || "Clear";
+					_circleTextLabel = configXML.circletextlabel || "Draw Search Area";
+					_resultsNumber = configXML.numberofresults || "40";                                                     
+				}  													
+	                
+				//Protect the input value for the number of results that can be returned
+				if(parseFloat( _resultsNumber ) > 100)
+				{
+					_resultsNumber = "100";
+				}
+				
+                //Set initial message text
+                messageBox.text = "To Start: Select draw tool then click on map.";  					
+				
+				//Singleton for managing data for this widget and associated classes
+				_tdm = TweetDataManager.getInstance();				
+				_tdm.internalIconDirectory = _INTERNAL_ICON_URL;
+				//_tdm.twitterSearchURL = _TWITTER_SEARCH_URL; //deprecated v4
+				_tdm.proxyURL = _OAUTH_PROXY_URL;
+				_tdm.version = __VERSION__;
+				_tdm.isLoggedIn = false;
+				_tdm.circle = null;
+				
+				//Default title bar button open/closes search box
+				wTemplate.addTitlebarButton(_ICON_URL + "i_searchgraphical.png","Draw Search Area",startTweets); 					                               
+				
+				//Title bar button that open/closes setup box           
+				wTemplate.addTitlebarButton(_ICON_URL + "i_options.png","Settings (" + __VERSION__ + ")" ,setupConfigure);						
+				
+				_tweetParser = new TweetParser(_tdm);
+				
+				_twitterOauthFactory = new TwitterOauthFactory(_OAUTH_PROXY_URL);
+				_twitterOauthFactory.addEventListener(TwitterOauthEvent.VERIFIED,oauthVerifiedHandler);
+				_twitterOauthFactory.addEventListener(TwitterOauthEvent.NOTVERIFIED,oauthVerficationFailedHandler);
+				_twitterOauthFactory.addEventListener(TwitterOauthEvent.LOGIN_SUCCESS,loginSuccessHandler);
+				_twitterOauthFactory.addEventListener(TwitterOauthEvent.LOGIN_FAILED,loginFailedHandler);
+				_twitterOauthFactory.addEventListener(TwitterOauthEvent.LOGOUT_SUCCESS,logoutSuccessHandler);
+				_twitterOauthFactory.addEventListener(TwitterOauthEvent.LOGOUT_FAILED,logoutFailedHandler);
+				
+				
+				_twitterOauthFactory.validateCredentials();
+				
+				masterEventListener();						
+            }
+            
+            private function creationComplete():void
+            {   
+				//Obtain a reference to the basemap
+				_map = map;                                                             						
+			
+				//Master timer for retrieving tweets
+                _updateTimer= new Timer(1000,0);
+                _updateTimer.addEventListener(TimerEvent.TIMER, timerHandler);  
+
+                //Track last InfoSymbol that is visible
+                _lastInfoSymbolGraphic = new Graphic();
+
+                //Timer button icon default mode is Stopped (therefore display a Go sign)
+                timerOnOff.setStyle("icon",this["_goSignIcon"]);   
+                
+                //Modify children height when opening/closing other Widget children
+				var openClose:OpenCloseHandler = new OpenCloseHandler (
+					displayTweets,
+					wTemplateVBox,
+					searchBox1,
+					setup);    
+
+                //Set number of search results in search results pulldown combolist
+                var searchResultsNum:SetSearchResultsNum = new SetSearchResultsNum(_resultsNumber);
+                numberOfResults.selectedIndex = searchResultsNum.index;
+
+            }                           			
+			
+			/**
+			 * Master time event handler - items to complete on tick interval
+			 */
+            private function timerHandler(event:TimerEvent):void
+            {
+                var timerPulldownValue:Number = parseFloat(timerInterval.text)*60000;
+                var d:Date = new Date(timerPulldownValue - (_updateTimer.currentCount * 1000));
+                masterMsgBox.timerText =  "Next update: " + dateFormatter.format(d);       
+                
+                //At the appointed time fetch new tweets
+                if((_updateTimer.currentCount * 1000) >= timerPulldownValue)
+                {            
+                    //startTimer();
+                    resetTimer();
+                    _updateTimer.start();
+                    fetchNewTweets();
+                }                   
+            }
+            
+			private function resetTimer():void
+			{
+				_updateTimer.reset();
+				masterMsgBox.timerText = "Next update: 00:00";
+			}
+			
+			/**
+			 * Change the timer state based on a button click 
+			 */
+            private function startStopTimer():void
+            {    
+                 //Condition: Widget timer not running 
+                 if (timerOnOff.selected == false && _tweetEntries != null &&  !_updateTimer.running)
+                 {  
+                    timerOnOff.setStyle("icon",this["_stopSignIcon"]);
+                    _updateTimer.start();                    
+                 }
+                 else
+                 {
+                    timerOnOff.setStyle("icon",this["_goSignIcon"]);                    
+                    _updateTimer.stop();                      
+                 }   
+            }
+			
+			/**
+			 * Handles various miscellaneous events between this widget and it's associated actionscript classes.
+			 */
+			private function masterEventListener():void
+			{
+				_tdm.addEventListener(MasterMsgEvent.GENERIC_MESSAGE,function(event:MasterMsgEvent):void{
+					masterMsgBox.msgText = event.data;
+				});
+				_tdm.addEventListener(MasterMsgEvent.SHOW_ERROR,function(event:MasterMsgEvent):void{
+					showError(event.data);
+				});															
+			}
+            
+			/**
+			 * Change the number of search results that are returned
+			 */
+            private function changeNumSearchResults():void
+            {
+                _resultsNumber = numberOfResults.text;
+            }
+            
+			/**
+			 * Reset the timer when changing the update interval on the timer
+			 */
+            private function changeTimerInterval():void
+            {
+                resetTimer();
+                _updateTimer.start();
+                timerOnOff.setStyle("icon",this["_stopSignIcon"]);              
+            }
+            
+            private function startTimer():void
+            {      
+                _updateTimer.stop();
+                _baseTimer = getTimer();                         
+                _updateTimer.start();
+                timerOnOff.setStyle("icon",this["_stopSignIcon"]);                              
+            }
+            
+			/**
+			 * Use for modifying the search radius that is displayed
+			 */
+            private function changeSearchRadius():void
+            {
+                _circleToolRadius = parseFloat( drawRadius.text );                
+				
+				if(_tdm.circle != null)
+				{
+					var dc:DrawCircle = new DrawCircle(
+						_tdm.clickLocationMapPoint,
+						_graphicsLayerCircle,
+						_circleToolRadius,
+						_map,
+						simpleFillSymbol1,
+						simpleLineSymbol1);
+					
+					_tdm.circle = dc.geometry;
+					fetchNewTweets();					
+				}
+            }
+                    
+            private function activateSearchTool():void
+            {       
+                //NOTE: the circle geometry is used as a visual-effect only.
+                //It is not used as an input geometry for a QueryTask.
+
+				if(_clickDrawBoolean)
+				{
+					_clickDrawBoolean = false;
+					drawIconHandler(false);
+					_map.removeEventListener(MapMouseEvent.MAP_CLICK,mapClickCircleDrawHandler);
+					_map.removeEventListener(MouseEvent.MOUSE_MOVE,clickHereToDrawMessageHandler);					
+					_clickOnMapGraphicLayer.clear();					
+				}
+				else
+				{
+					_clickDrawBoolean = true;
+					drawIconHandler(true);
+					map.cursorManager.setCursor(_pointerCursor,2,0,-3); //force cursor to a pointer	
+					
+					_clickOnMapGraphic.symbol = clickonmapTextSymbol;
+					_clickOnMapGraphic.geometry = new MapPoint(0,0, new SpatialReference(102100));
+					//_clickOnMapGraphic.autoMoveToTop = true;
+					_clickOnMapGraphicLayer.add(_clickOnMapGraphic)				
+					
+					_map.addEventListener(MouseEvent.MOUSE_MOVE,clickHereToDrawMessageHandler);
+					_map.addEventListener(MapMouseEvent.MAP_CLICK,mapClickCircleDrawHandler);
+				}
+            }
+			
+			private function drawIconHandler(flag:Boolean):void
+			{
+				if(drawIcon && flag == false) 
+				{
+					//Change draw icon to red
+					drawIcon.source = _tdm.internalIconDirectory + "i_draw.png";	
+				}
+				
+				else if(drawIcon && flag == true) 
+				{
+					//Change draw icon to red
+					drawIcon.source = _tdm.internalIconDirectory + "i_draw_active.png";	
+				}				
+			}
+			
+			private function clickHereToDrawMessageHandler(event:MouseEvent):void
+			{
+				const mapPoint:MapPoint = _map.toMapFromStage(event.stageX, event.stageY);	
+				_clickOnMapGraphic.geometry = mapPoint;
+				_clickOnMapGraphic.refresh();
+			}
+            
+			private function mapClickCircleDrawHandler(event:MapMouseEvent):void
+			{
+				   
+				_map.removeEventListener(MapMouseEvent.MAP_CLICK,mapClickCircleDrawHandler);
+				_map.removeEventListener(MouseEvent.MOUSE_MOVE,clickHereToDrawMessageHandler);		
+				map.cursorManager.removeAllCursors();  //restore default cursor handlers					
+				masterMsgBox.msgText = "Status: Loading tweets...";
+				drawIconHandler(false);
+				
+				_clickOnMapGraphicLayer.clear();
+				
+				var mapPoint:MapPoint = event.mapPoint;				
+				//Set properties in an instance of the LatLonProcessor class
+				_clickLocation.lat = mapPoint.y;
+				_clickLocation.lon = mapPoint.x;   	
+				_tdm.clickLocationMapPoint = mapPoint;
+				
+				var mapClickDraw:MapClickDrawHandler = new MapClickDrawHandler(
+					event,_map,feedLoader2,_tdm,drawRadius,_graphicsLayerCircle,simpleFillSymbol1,simpleLineSymbol1,_resultsNumber);
+				
+				_tdm.circle = mapClickDraw.circle;
+				
+				fetchNewTweets();
+			}
+			
+			/**
+			 * Used to begin the drawing process. Clears previous graphics and other data.
+			 */
+            private function drawStartHandler(event:DrawEvent):void {
+                clear();      
+            }                     
+            
+            private function fetchNewTweets():void
+            {   
+				var radius:Number = parseFloat(drawRadius.text);
+				
+				//Twitter only accepts lat/lon, so you have to convert from Mercator in order for 
+				//this request to work. Also don't forget that "Y" = lat and "X" = lon.
+				var mapPoint:MapPoint = new MapPoint();
+				mapPoint.y = _clickLocation.lat
+				mapPoint.x = _clickLocation.lon;
+				var tempMP:MapPoint = WebMercatorUtil.webMercatorToGeographic(mapPoint) as MapPoint;				
+				
+				//var twitterURL:String = _tdm.twitterSearchURL + "?geocode=" + tempMP.y + "%2C" + tempMP.x + "%2C" + radius + "mi" + "&rpp=" + _resultsNumber;   
+				var twitterURL:String = _OAUTH_PROXY_URL + "?cmd=search&geocode=" + tempMP.y + "%2C" + tempMP.x + "%2C" + radius + "mi&count=" + _resultsNumber;
+
+                //Create unique values and attached them to URL to prevent caching of URL
+                //There are a number of ways to do this, this is just the one I picked at the time.
+                var date:Date = new Date();
+                feedLoader2.clearResult();
+                feedLoader2.url = twitterURL + "&nocache=" + date.toString(); 
+                feedLoader2.send();
+            }            
+       
+            /**
+			 * Process the results of a fetchNewTweets event.
+			 */
+            private function onResult(event:ResultEvent):void
+            {   
+                var loggedIn:String = "false";
+				
+				feedLoader2.disconnect();
+                
+				_tweetEntries = new ArrayCollection();
+				_tweetEntries = _tweetParser.parseJSON(event.result);
+				
+				try
+				{
+					loggedIn = _tweetEntries[0].loggedin;
+				}
+				catch(error:Error)
+				{
+					trace("onResult(): invalid twitter response. Value = null");
+				}
+
+				
+				if(loggedIn == "true")
+				{
+					startTimer();
+	                _tweetFeed = new String(event.result);
+					_tdm.tweetsCSV = _tweetParser.tweetsCSV; 
+					downloadCSV.enabled = true;
+	                
+	                //check for twitter rate limit errors
+	                var checkForTwitterRateLmt:Boolean = checkForTwitterRateLimit(_tweetEntries);                               
+	                if(checkForTwitterRateLmt == false) 
+	                {
+	                   applyFilters();
+	                   masterMsgBox.msgText = "Status: tweets retrieved"; 
+					   //tweetErrors.text = "Status: tweets retrieved";                    
+	                }
+	                else
+	                {
+	                    //Twitter documents how to specifically listen for Retry-After header values
+	                    //That functionality is not currently built-into this app.
+	                    //http://apiwiki.twitter.com/Rate-limiting 
+	                    masterMsgBox.msgText = "Status: You have been rate limited. Trying again...";
+	                }
+				}
+				else
+				{
+					trace("fetchNewTweets(): invalid or missing result");
+					
+					if(loggedIn == "false")
+					{
+						masterMsgBox.msgText = "Status Error: logged out of twitter.";
+						Alert.show("Log into Twitter via Settings > Login","TwitterSearch Widget");
+					}
+					else
+					{
+						masterMsgBox.msgText = "Status Error: unable to retrieve tweets.";
+					}
+				}
+                
+                //zoomToGraphics();
+            }                       
+            
+			/**
+			 * Handle any errors that may occur with a fetchNewTweets event.
+			 */
+            private function onFault(event:FaultEvent):void
+            {
+                masterMsgBox.msgText = "Status: Unable to load feed. Check Proxy setup.";
+                _updateTimer.stop();  
+				_tdm.tweetsCSV = null;
+				downloadCSV.enabled = false;
+                feedLoader2.cancel();
+                trace("HTTPService onFault(): " + event.fault.getStackTrace());
+            }           
+                        
+
+			/**
+			 * Twitter only allows a certain number of connections to their APIs per hour
+			 */
+            private function checkForTwitterRateLimit(tweets:ArrayCollection):Boolean
+            {
+                try
+                {
+                     var testObj:Object = tweets.getItemAt(1).imageURL;
+                }
+                catch(err:Error)
+                {
+					trace("checkForTwitterRateLimit " + err.getStackTrace());
+                    startTimer();               
+                    return true;
+                }
+                
+                masterMsgBox.msgText = "Status: O.K.";  
+                
+                return false;               
+            }
+        
+            private function geocodeLocation(array:ArrayCollection):void
+            {                 
+                //Clustering/declustering of points
+                var pm:PointManager = new PointManager();
+                pm.map = _map;
+                pm.sink = array;
+                pm.symbol = compositeSymbol1;
+                pm.infoSymbol = infoSymbol1; 
+                pm.infoSymbol2 = infoSymbol2;
+                pm.clickLocation = _clickLocation;
+                pm.graphicsLayer = _gL1;
+                
+                //Get ArrayCollection back from PointManager and feed it to graphicProvider
+                var tempArrayCollection2:ArrayCollection = new ArrayCollection();
+                tempArrayCollection2 = pm.updateManager();
+                _gL1.graphicProvider = tempArrayCollection2;
+                _graphicsArray = pm.graphicsArray;
+				//_graphicsArray.addItem(pm.graphicsArray);
+            }                                              
+            
+            private function resultHandler(event:ResultEvent):void
+            {        
+                try
+                {
+                    var item:Object = event.result.geonames.geoname[0];
+                    var myGraphic:Graphic = new Graphic(new MapPoint(item.lng, item.lat, new SpatialReference(4326)), new SimpleMarkerSymbol());
+                    myGraphic.toolTip = item.name;
+                    myGraphic.attributes = event.token;
+                    myGraphic.symbol = diamond;                       
+                    //myGraphic.autoMoveToTop = true;
+                    _myGraphicsLayer.add(myGraphic);                    
+                }
+                catch (err:Error)
+                {
+                    trace("resultHandler(): " + err.message);
+                }
+            }           
+
+            private function httpFaultHandler(err:FaultEvent):void
+            {
+                trace("httpFaultHandler(): " + err.message);
+            }
+
+            /**
+			 * NOT CURRENTLY USED.
+			 */
+            private function zoomToGraphics():void
+            {
+                var graphicProvider:ArrayCollection = _myGraphicsLayer.graphicProvider as ArrayCollection;
+                var graphicsExtent:Extent = GraphicUtil.getGraphicsExtent(graphicProvider.toArray());
+
+                if (graphicsExtent)
+                {
+                    _map.extent = graphicsExtent;
+
+                    // make sure the whole extent is visible
+                    //if (!map.extent.containsExtent(graphicsExtent))
+					if(!map.extent.contains(graphicsExtent))
+                    {
+                        _map.level--;
+                    }
+                }
+            }
+           
+            private function zoomEnd(event:ZoomEvent):void
+            {
+                if(_tdm.circle)
+                {
+                    //check for twitter rate limit errors
+                    var checkForTwitterRateLmt:Boolean = checkForTwitterRateLimit(_tweetEntries);                                
+                    if(checkForTwitterRateLmt == false) 
+                    { 
+                       	//applyFilters();
+						geocodeLocation(_tweetEntries);
+                    } 
+                }
+            }                                  
+
+			/**
+			 * Apply to filters directly against the results received from Twitter. Note, this is different
+			 * than asking the Twitter API to do the filtering for you. The number of filters is currently limited
+			 * to three, but that number could be much higher.
+			 */
+            private function applyFilters():void
+            {                                
+                //var filter:ApplyTweetFilters = new ApplyTweetFilters(filterOne,_tdm,_gL1,repeat);
+				
+				//Do the following if a filter has been set
+                if((filterOne.text !="" && _tdm.circle) || (filterOne.text !="" && _gL1.numGraphics > 0))
+                {
+                    repeat.dataProvider = [];                       //clear repeater grid
+                    _myGraphicsLayer.clear();                        //clear entire graphics layer
+                    //_myGraphicsLayer.add(circleTool.circleGraphic);  //add circle graphic back when using the drag circle
+                    var checkForValues:LatLonProcessor = new LatLonProcessor();  
+                    var check1:Boolean = false;
+                    var check2:Boolean = false;
+                    var check3:Boolean = false; 
+    
+                    if(filterCheckBox.selected && _tweetEntries != null)
+                    {
+                  
+                        checkBoxVbox.styleName = "checkBoxEnabled";
+                        
+                        var tempArray:ArrayCollection = new ArrayCollection();                        
+                        var len:Number = _tweetEntries.length;
+    
+                        while ( len-- )
+                        {                                    
+                            var f1:String = StringUtil.trim(filterOne.text.split(",")[0]);
+                            var f2:String = StringUtil.trim(filterOne.text.split(",")[1]);
+                            var f3:String = StringUtil.trim(filterOne.text.split(",")[2]);
+
+                            check1 = checkForValues.countOf(_tweetEntries[len].title,f1,false);
+                            check2 = checkForValues.countOf(_tweetEntries[len].title,f2,false);
+                            check3 = checkForValues.countOf(_tweetEntries[len].title,f3,false);                    
+
+                            //Listen for filter that are set
+                            //Add values to a new array if a boolean is detected
+                            if(check1 || check2 || check3)
+                            {   
+                                tempArray.addItem(_tweetEntries[len]);
+                            }
+                        }   
+                              
+                        repeat.dataProvider = tempArray;
+                        geocodeLocation(tempArray);                            
+                    }
+                    else
+                    {                               
+                        checkBoxVbox.styleName = "checkBoxDisabled";
+
+                        //Store all default values in _tweetEntries so we can rebuild graphics on map
+                        repeat.dataProvider = _tweetEntries;
+                        geocodeLocation(_tweetEntries);
+                    } 
+                }
+                
+                //App first loads, or no search area defined
+                else if(!filterCheckBox.selected && _tdm.circle)
+                {
+                    //Store all default values in _tweetEntries so we can rebuild graphics on map
+					repeat.dataProvider = _tweetEntries;
+                    geocodeLocation(_tweetEntries);
+                }
+				
+				//App first loads, or no search area defined
+				else if(!filterCheckBox.selected)
+				{
+					//Store all default values in _tweetEntries so we can rebuild graphics on map
+					repeat.dataProvider = _tweetEntries;
+					geocodeLocation(_tweetEntries);
+				}				
+                                   
+                else if((filterCheckBox.selected && _tdm.circle) || (filterCheckBox.selected && _gL1.numGraphics > 0))
+                {
+                    showError("No Filters have been set up yet. Enter filter search results.");                    
+                    filterCheckBox.selected = false; 
+                    repeat.dataProvider = _tweetEntries;
+                    geocodeLocation(_tweetEntries);                      
+                }
+				
+            }                                 
+             
+            private function onRollOverEventHandler(event:MouseEvent):void
+            {               
+				var repeaterEventHandler:RepeaterEventHandler = new RepeaterEventHandler(event,_gL1,_lastInfoSymbolGraphic,infoSymbol1,_graphicsArray); 
+				_lastInfoSymbolGraphic = repeaterEventHandler.infoSymbolGraphic;
+            }
+            
+            private function onRollOutEventHandler(event:Event):void
+            {
+                //var obj:Object = event.currentTarget.getRepeaterItem();                
+                event.currentTarget.setStyle("backgroundAlpha","0.3");                
+
+                _gL1.remove(_lastInfoSymbolGraphic);
+                _lastInfoSymbolGraphic = null;
+            }            
+                                                                   
+			/**
+			 * Clean up the user interface, delete data and reset.
+			 */
+            private function clear():void 
+            {   
+                _myGraphicsLayer.clear();
+                _tdm.circle = null;
+                _gL1.clear(); 
+				_graphicsLayerCircle.clear();
+                _tweetFeed = "";
+                _tweetEntries = null;
+                repeat.dataProvider = [];
+                _tdm.tweetsCSV = null;
+				downloadCSV.enabled = false;
+                _updateTimer.stop();
+				masterMsgBox.msgText = "";
+                resetTimer();                              
+            }           
+            
+			/**
+			 * Default back to standard map navigation when the widget is closed.
+			 */
+            private function widgetClosedHandler(event:Event):void {    
+                clear();
+                setMapNavigation(null, null);
+                masterMsgBox.timerText = "";
+                masterMsgBox.msgText = "";
+                _newTweetText = "";
+            } 
+
+            /**
+			 * This is needed to eliminate security sandbox violations.
+             * It has to do with problems related to
+             * Amazon serving images up from multiple server farms and then
+             * this application touching that image when changing view tabs.
+             * Here's a great article explaining the problem if you want to know more:
+             * http://jessewarden.com/2009/03/handling-crossdomainxml-and-302-redirects-using-netstream.html 
+			 */
+			private function policyChange():void
+            {
+                _loaderContext = new LoaderContext(); 
+                _loaderContext.checkPolicyFile = true;               
+            }
+            
+            private function setupConfigure():void
+            {
+                //Only allow one window open at a time
+                setup.visible = !setup.visible;   
+                if(setup.visible) searchBox1.visible = false;              
+            }
+            
+            private function startTweets():void
+            {
+                searchBox1.visible= !searchBox1.visible;
+                if(searchBox1.visible) setup.visible = false;               
+            }
+            
+            private function mouseOutImage(event:Event):void
+            {
+                var obj:UIComponent = event.currentTarget as UIComponent; 
+                obj.initialize(); 
+                var img:Image = obj.getChildAt(1) as Image;
+                img.visible = false;                                                                                                
+            }                                                                       
+
+			protected function downloadCSV_clickHandler(event:MouseEvent):void
+			{
+				var downloadFileRef:FileReference = new FileReference();
+				downloadFileRef.addEventListener(IOErrorEvent.IO_ERROR,function(error:IOErrorEvent):void{
+					showError("There was an error downloading the file. Close any existing versions. " + error);
+				});
+				downloadFileRef.addEventListener(Event.COMPLETE,function(event:Event):void{
+					masterMsgBox.msgText = "Status: File download complete.";
+					Alert.show("File download complete.","Download");					
+				});
+				
+				if(_tdm.tweetsCSV != null || _tdm.tweetsCSV != "")
+				{
+					downloadFileRef.save (_tdm.tweetsCSV, "tweets.csv");
+				}
+			}
+			
+			private function loginSuccessHandler(event:TwitterOauthEvent):void
+			{
+				_tdm.isLoggedIn = true;
+				drawIcon.enabled = true;
+				loginTwitterButton.label = "Logout";
+			}
+			
+			private function loginFailedHandler(event:TwitterOauthEvent):void
+			{
+				_tdm.isLoggedIn = false;	
+				loginTwitterButton.label = "Login";
+			}
+			
+			private function logoutSuccessHandler(event:TwitterOauthEvent):void
+			{
+				_tdm.isLoggedIn = false;
+				loginTwitterButton.label = "Login";
+				drawIcon.enabled = false;
+				Alert.show("Logged out of Twitter.","TwitterSearch"); 
+			}
+			
+			private function logoutFailedHandler(event:TwitterOauthEvent):void
+			{
+				_tdm.isLoggedIn = false;
+				loginTwitterButton.label = "Login";
+				Alert.show("Logging out failed for an unknown reason.","TwitterSearch");
+			}
+
+			protected function loginTwitterButton_clickHandler(event:MouseEvent):void
+			{
+				if(_tdm.isLoggedIn == false)
+				{
+					_twitterOauthFactory.loginOauthRequest();
+				}
+				else
+				{
+					_twitterOauthFactory.logoutOauth();
+				}
+			}
+			
+			private function oauthVerifiedHandler(event:TwitterOauthEvent):void
+			{
+				
+				if(event.type == TwitterOauthEvent.VERIFIED)
+				{
+					trace("aothVerifiedHandler: creds have been verified.");
+					drawIcon.enabled = true;
+					loginTwitterButton.label = "Logout";
+					_tdm.isLoggedIn = true;
+					masterMsgBox.msgText = "Status: Logged into Twitter.";
+				}
+				else
+				{
+					drawIcon.enabled = false;
+					_tdm.isLoggedIn = false;
+					loginTwitterButton.label = "Login";
+					Alert.show("Log into Twitter via Settings > Login","TwitterSearch Widget");
+				}
+			}
+			
+			private function oauthVerficationFailedHandler(event:TwitterOauthEvent):void
+			{
+				Alert.show("Twitter verification failed. Try log out/log in again.","TwitterSearch");
+				trace("oauthVerificationFailedHandler: there was a problem verifying creds. " + event.data);
+			}
+			
+		]]>
+    </fx:Script>
+    
+	<fx:Declarations>
+		<esri:TextSymbol id="clickonmapTextSymbol" text="Click on Map" placement="above" xoffset="0" yoffset="0" >
+			<flash:TextFormat size="12" font="Verdana" bold="true" italic="false" underline="false" />
+		</esri:TextSymbol>				
+		
+	    <esri:SimpleMarkerSymbol id="diamond" size="16" style="diamond"/>    
+	    <esri:SimpleFillSymbol id="simpleFillSymbol1" color="0x00FFFF" alpha="0.5" style="solid" /> 
+	    <esri:SimpleLineSymbol id="simpleLineSymbol1" style="solid" color="0xFF00FF" width="1" alpha="1"/>                    
+	
+	    <esri:CompositeSymbol id="compositeSymbol1">
+	        <esri:SimpleMarkerSymbol style="circle" alpha="0.5" color="0xFF3366" size="20"/>
+	        <esri:TextSymbol id="ts1" text="1" color="0xFFFFFF" backgroundColor="0x0000FF">
+	            <flash:TextFormat bold="true" size="16" align="center" font="Arial" />
+	        </esri:TextSymbol>
+	    </esri:CompositeSymbol>
+	
+	    <esri:InfoSymbol id="infoSymbol1">
+	        <esri:infoRenderer>
+	            <fx:Component>
+	                <components:TweetsInfoSymbolVBox tweetObject="{data}" />
+	            </fx:Component>            
+	        </esri:infoRenderer>
+	    </esri:InfoSymbol>     
+	
+	    <esri:InfoSymbol id="infoSymbol2">
+	        <esri:infoRenderer>
+	            <fx:Component>
+	                <components:TweetsInfoSymbolComplexVBox tweetObject="{data}" />
+	            </fx:Component>            
+	        </esri:infoRenderer>
+	    </esri:InfoSymbol> 	
+		
+		<mx:HTTPService 
+			id="feedLoader2"
+			requestTimeout="20"
+			concurrency="last"
+			method="POST"
+			resultFormat="text"
+			result="onResult(event)"
+			fault="onFault(event)"/>
+		
+		<!-- This formatter is for the update time remaining indicator -->
+		<mx:DateFormatter id="dateFormatter" formatString="NN:SS" />
+	</fx:Declarations>	
+
+		<viewer:WidgetTemplate id="wTemplate" height="480" width="380"	
+			closed="widgetClosedHandler(event)" skinClass="com.esri.viewer.skins.WidgetTemplateSkin">
+        <!-- MASTER VBOX - This box helps align all the children in the Widget -->
+        <mx:VBox id="wTemplateVBox" width="97%" height="410">      
+                
+        <!-- SEARCH BOX VIEW -->
+
+        <mx:VBox id="searchBox1" width="100%" 
+            paddingTop="3"
+            creationComplete="searchBox1.visible = true"
+            includeInLayout="{searchBox1.visible}"
+            backgroundAlpha="0.6"           
+            styleName="RecordCanvas2">
+            <mx:HBox width="100%" verticalAlign="middle">
+               
+                <mx:Text id="messageBox" verticalCenter="true" color="white" height="40" 
+                    width="100%" toolTip="You can also adjust the search radius." />
+                <mx:VRule strokeWidth="1" alpha="0.5" strokeColor="0xC0C0C0" height="40"/>                   
+
+                <mx:VBox horizontalAlign="center">
+                    <mx:Text fontSize="9" color="white" text="Search Radius" />
+                    <mx:ComboBox id="drawRadius" change="changeSearchRadius()" selectedIndex="2">
+                        <mx:ArrayCollection>
+                            <fx:String>10</fx:String>
+                            <fx:String>20</fx:String>
+                            <fx:String>40</fx:String>
+                            <fx:String>60</fx:String>
+                            <fx:String>80</fx:String>
+                            <fx:String>100</fx:String>
+                            <fx:String>200</fx:String>                        
+                        </mx:ArrayCollection>
+                    </mx:ComboBox>                                        
+                </mx:VBox>
+                <mx:Image id="drawIcon" click="{activateSearchTool()}"
+                    source="{_tdm.internalIconDirectory + 'i_draw.png'}"
+                    useHandCursor="true" 
+                    buttonMode="true" 
+                    toolTip="{_circleTextLabel}" 
+                    width="40" 
+                    height="40"/>
+                <mx:Image click="clear()" 
+                    source="{_tdm.internalIconDirectory + 'i_clear.png'}" 
+                    useHandCursor="true" 
+                    buttonMode="true" 
+                    toolTip="{_clearTextLabel}" 
+                    width="40" 
+                    height="40"/>                    
+            </mx:HBox> 
+            <!-- Insert a semi-transparent divider -->
+            <mx:HRule strokeWidth="1" alpha="0.5" strokeColor="0xC0C0C0" width="100%" />            
+            
+        <!-- FILTERS VIEW -->
+            
+            <mx:Text width="100%" color="white" 
+                text="Optional: Enter up to three key words to filter search results seperated by commas."/>
+            <mx:HBox horizontalAlign="center" width="100%" >
+                <s:TextInput id="filterOne" maxChars="75" contentBackgroundColor="0xFFFFFF" color="black" width="80%" 
+                    toolTip="Example: traffic,Dallas,slow"/>              
+            </mx:HBox>                
+            <mx:VBox id="checkBoxVbox" width="100%" verticalGap="1" paddingLeft="3">            
+                <mx:CheckBox id="filterCheckBox" click="applyFilters();" 
+                    toolTip="Be sure to set the filters." width="100%" label="Apply Keywords"/>
+            </mx:VBox>                                           
+        </mx:VBox>
+        
+        <!-- DISPLAY SETUP/CONFIGURATION INFO -->
+        
+        <mx:VBox id="setup" width="100%" verticalGap="1"
+             label="Setup"
+             creationComplete="setup.visible = false"
+             includeInLayout="{setup.visible}"
+             backgroundAlpha="0.6"
+             styleName="RecordCanvas2">
+            
+             <mx:Form width="100%" backgroundAlpha="0.5" color="white">
+                 
+				<s:FormItem color="red" label="Twitter Login (Required!)">
+					<mx:Button id="loginTwitterButton" enabled="true" label="Login" click="loginTwitterButton_clickHandler(event)"/>
+				</s:FormItem> 
+                <mx:HRule strokeWidth="1" shadowColor="0xff0000" width="100%" /> 
+                <mx:FormItem label="Refresh rate (min's)">
+                    <mx:HBox>
+                        <mx:ComboBox id="timerInterval" change="changeTimerInterval()" selectedIndex="0">
+                            <mx:ArrayCollection>
+								<fx:String>0.5</fx:String>
+                                <fx:String>1</fx:String>
+                                <fx:String>5</fx:String>
+                                <fx:String>10</fx:String>
+                                <fx:String>20</fx:String>
+                                <fx:String>40</fx:String>
+                                <fx:String>60</fx:String>
+                            </mx:ArrayCollection>
+                        </mx:ComboBox>
+                        <mx:Button id="timerOnOff" toggle="true"
+                            labelPlacement="right" click="startStopTimer()"
+                            useHandCursor="true"  />    
+                        <!--<mx:Text id="timerReadOut" color="white" />-->                      
+                    </mx:HBox>
+                </mx:FormItem>
+                <mx:HRule strokeWidth="1" shadowColor="0xff0000" width="100%" /> 
+                <mx:FormItem label="Search results">
+                    <mx:ComboBox id="numberOfResults" change="changeNumSearchResults()" >
+                        <mx:ArrayCollection>
+                            <fx:String>20</fx:String>
+                            <fx:String>40</fx:String>
+                            <fx:String>60</fx:String>
+                            <fx:String>80</fx:String>
+                            <fx:String>100</fx:String>
+                        </mx:ArrayCollection>
+                    </mx:ComboBox>                                                
+                </mx:FormItem>      
+				<mx:HRule strokeWidth="1" shadowColor="0xff0000" width="100%" /> 	
+				<s:FormItem label="Download Tweet CSV">
+					<mx:Button id="downloadCSV" enabled="false" label="Download" click="downloadCSV_clickHandler(event)" />
+				</s:FormItem>
+             </mx:Form>
+			
+			<mx:HRule strokeWidth="1" shadowColor="0xff0000" width="100%" /> 
+			
+        </mx:VBox>          
+        
+        <!-- DISPLAY ALL TWEETS -->
+        
+        <mx:VBox id="displayTweets" width="100%" height="246" verticalGap="3"  >
+            <mx:Repeater id="repeat">                           
+                <mx:VBox                                    
+                    width           ="100%" 
+                    minHeight       ="50" 
+                    styleName       ="RecordCanvas2" 
+                    backgroundAlpha ="0.3" 
+                    paddingLeft     ="3" 
+                    horizontalGap   ="3"
+                    rollOver        ="onRollOverEventHandler(event)"  
+                    rollOut         ="onRollOutEventHandler(event)">                                        
+                    <mx:HBox width="100%">
+                        <mx:Canvas id="imageHolder"
+                            x="0" y="0">                                        
+                            <mx:Image id="tweetImages" source="{repeat.currentItem.imageURL}"   
+                                initialize="policyChange()"
+                                loaderContext="{_loaderContext}"
+                                width="40"                                                                                 
+                                height="40"/>
+                        </mx:Canvas>                                                                                               
+                        <mx:Text useHandCursor="false" htmlText="{repeat.currentItem.title}" 
+                            width="100%" styleName="RecordText"/>                     
+                    </mx:HBox>
+					
+					<!-- Insert a semi-transparent divider -->
+					<!--<mx:HRule styleName="horizontalRuleTweetDivider" alpha="0.7" width="98%" />-->															
+                    
+                    <mx:HBox width="100%" height="100%">					
+                        <mx:Text textAlign="left" width="50%" styleName="tweetMetaData"  htmlText="{repeat.currentItem.name}, {repeat.currentItem.published}"/>
+						<mx:Image id="geoEnabledImg" source="{_tdm.internalIconDirectory + repeat.currentItem.geoenabled}"   
+								  width="12" toolTip="Geo-enabled on" height="12" horizontalAlign="center" verticalAlign="middle"/>						
+						<mx:Text textAlign="right" width="50%" styleName="tweetMetaData" htmlText="{repeat.currentItem.geometry}" />							
+                    </mx:HBox>
+					
+                </mx:VBox>
+            </mx:Repeater>                          
+        </mx:VBox>			
+			
+    <!-- END MASTER VBOX -->        
+    </mx:VBox>   
+
+	<!-- CUSTOM MXML COMPONENT for displaying messages -->
+	<components:MasterMsgHBox  x="0" y="410" id="masterMsgBox" msgText="Status: O.K." timerText="Next update: 00:00" />
+				        					
+    </viewer:WidgetTemplate>
+	
+</viewer:BaseWidget>

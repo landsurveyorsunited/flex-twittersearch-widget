@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox width="300" xmlns:mx="http://www.adobe.com/2006/mxml">
+    
+<mx:Script>
+    <![CDATA[
+        [Bindable] private var _data:Object;
+        public function set tweetObject(tweet:Object):void
+        {
+            _data = tweet;
+            
+            //force a pointer cursor (rather than hand cursor) when hovering over the symbol icon 
+            this.cursorManager.removeAllCursors();              
+        } 
+    ]]>
+</mx:Script>
+	<mx:Style>
+		.tweetMetaData
+		{
+			color: black;
+			font-size: 9pt;
+			font-style:italic;
+		}		
+	</mx:Style>
+    <mx:Image source="{_data.imageURL}" 
+        width="40"
+        height="40"/>
+    <mx:VBox width="100%" height="100%">
+        <mx:Text width="100%" fontSize="10" color="white" styleName="tweetMetaData" htmlText="{_data.title}" />
+
+		<mx:HRule strokeWidth="1" shadowColor="0xff0000" width="100%" />			
+		
+        <mx:HBox width="100%" height="100%">
+            <mx:Text textAlign="left" width="50%" color="white" styleName="tweetMetaData" fontSize="9" htmlText="{_data.name}"/>
+            <mx:Text textAlign="right" width="50%" color="white" styleName="tweetMetaData" fontSize="9" htmlText="{_data.geometry}" />                            
+        </mx:HBox>
+    </mx:VBox>
+
+</mx:HBox>

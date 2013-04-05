@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox width="300" height="255" verticalGap="3" xmlns:mx="http://www.adobe.com/2006/mxml">
+
+<mx:Script>
+    <![CDATA[
+        import mx.collections.ArrayCollection;
+        import mx.events.ChildExistenceChangedEvent;
+        
+        [Bindable] private var _data:ArrayCollection;
+        
+        public function set tweetObject(tweets:Object):void
+        {
+            _data = tweets as ArrayCollection;            
+            
+            //force a pointer cursor (rather than hand cursor) when hovering over the symbol icon 
+            this.cursorManager.removeAllCursors();   
+            
+            repeat2.dataProvider = _data;     
+                   
+            //Based on each row ~ 50px in height
+            if(_data.length < 6) this.height = _data.length * 50;					
+        } 
+        
+        private function onRollOverEventHandler(event:Event):void
+        {          
+			event.currentTarget.setStyle("backgroundAlpha","0.6"); 			
+			event.currentTarget.setStyle("backgroundColor","#606060");			
+        }   
+        
+        private function onRollOutEventHandler(event:Event):void
+        {
+            event.currentTarget.setStyle("backgroundAlpha","0.3");
+			event.currentTarget.setStyle("backgroundColor","#737373");			
+        } 
+                                     
+    ]]>
+</mx:Script>
+	<mx:Style>
+		.tweetMetaData
+		{
+			color: #FFFFFF;
+			font-size: 9pt;
+			font-style:italic;
+		}		
+	</mx:Style>
+    <mx:Repeater id="repeat2">
+        <mx:VBox                                    
+            width           ="100%" 
+            minHeight       ="50" 
+            styleName       ="RecordCanvas2" 
+            backgroundAlpha ="0.3" 
+            paddingLeft     ="3" 
+            horizontalGap   ="3"
+            useHandCursor   ="false"
+            buttonMode      ="false"
+            rollOver        ="onRollOverEventHandler(event)"  
+            rollOut         ="onRollOutEventHandler(event)">                                        
+            <mx:HBox width="100%">
+                <mx:Image id="tweetImages" source="{repeat2.currentItem.imageURL}"   
+                    width="40"                                                                                 
+                    height="40"/>
+                                                                                               
+                <mx:Text color="white" htmlText="{repeat2.currentItem.title}" width="100%" styleName="tweetMetaData"/>                     
+            </mx:HBox>
+            
+            <mx:HBox width="100%" height="100%" buttonMode="false" >
+                <mx:Text id="tweetField" color="white" textAlign="left" width="50%" styleName="tweetMetaData" 
+                    htmlText="{repeat2.currentItem.name}, {repeat2.currentItem.published}"/>
+                <mx:Text textAlign="right" color="white" width="50%" styleName="tweetMetaData" htmlText="{repeat2.currentItem.geometry}" />                                                                
+            </mx:HBox>
+			
+			<!-- Insert a semi-transparent divider -->
+			<mx:HRule strokeWidth="1" alpha="0.4" strokeColor="0xC0C0C0" width="98%" />			
+			
+        </mx:VBox>
+    </mx:Repeater>
+</mx:VBox>
