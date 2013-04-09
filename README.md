@@ -76,7 +76,7 @@ The proxy REQUIRES PHP and the Mcrypt library be installed. Mycrypt is typically
 - Copy the Key and IV into config.php.
 - Set the timezone in config.php.
 - Sign into OAuth using sign_in.php
-- Run the following command in your browser. If it fails to return values then something isn't set up correctly: [http://<your domain>/oauthproxy/?cmd=search&geocode=34.26847173704432%2C-118.02937514220592%2C40mi&count=40&nocache=Thu%20Apr%204%2018](http://<your domain>/oauthproxy/?cmd=search&geocode=34.26847173704432%2C-118.02937514220592%2C40mi&count=40&nocache=Thu%20Apr%204%2018)
+- Run the following command in your browser. If it fails to return values then something isn't set up correctly: [http://your_domain_name/oauthproxy/?cmd=search&geocode=34.26847173704432%2C-118.02937514220592%2C40mi&count=40&nocache=Thu%20Apr%204%2018](http://<your domain>/oauthproxy/?cmd=search&geocode=34.26847173704432%2C-118.02937514220592%2C40mi&count=40&nocache=Thu%20Apr%204%2018)
 - Once this is configured you should be good to try and run the TwitterSearch widget inside FlexViewer.
 
 If you simply can't get encryption to work then you can do the following (NOT RECOMMENDED and totally unsupported) steps. Most problems with encryption will stem from the Mcrypt library not being loaded.
@@ -115,5 +115,5 @@ If you simply can't get encryption to work then you can do the following (NOT RE
 
 - Special NOTE: Twitter is subject to rate limiting. More details here [https://dev.twitter.com/docs/api/1.1/get/search/tweets](https://dev.twitter.com/docs/api/1.1/get/search/tweets) 
 
-[](Esri Tags: FlexViewer Flex Widget)
+[](Esri Tags: FlexViewer Flex Widget Twitter OAuth)
 [](Esri Language: ActionScript)
