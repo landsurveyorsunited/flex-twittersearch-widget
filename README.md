@@ -1,7 +1,7 @@
 flex-twittersearch-widget
 =========================
 
-This widget is designed to monitoring Tweets withing a specific geographic area for disaster response. Combine its capabilities with other FlexViewer widgets. It includes searching Twitter within a geographic area, applying multiple filters against search results, automatic refresh, and clustering of results on map. 
+This widget is for monitoring Tweets within a specific geographic area. It was designed for disaster response efforts. You can combine its capabilities with other FlexViewer widgets. It includes searching Twitter within a geographic area, applying multiple filters against search results, automatic refresh, and clustering of results on map. 
 
 ####Main screen
 
