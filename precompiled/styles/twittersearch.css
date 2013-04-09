@@ -1,0 +1,87 @@
+/* CSS file */
+@namespace mx "library://ns.adobe.com/flex/mx";
+@namespace twitterSearch "widgets.twittersearch.styles";
+
+.checkBoxEnabled
+{
+    background-color: red;
+}        
+.checkBoxDisabled
+{
+    background-color: #737373;
+    background-alpha:0.6;
+}
+.messageBox
+{
+    font-size: 10pt;
+    font-family: arial;
+    color: #FFFFFF;
+}
+.tweetMetaData
+{
+    color: #FFFFFF;
+    font-size: 9pt;
+    font-style:italic;
+}
+.newTweetTextArea
+{
+    border-style: solid;
+    background-alpha: 0.3;
+    corner-radius: 5;
+    font-size: 9;
+}
+.clickonmapTextSymbol
+{
+	color:#000000;
+	background-color:#FFFFFF;
+	border-color:#000000;
+}
+
+.unameFormButton
+{
+    background-alpha:0.8;
+	color: #FFFFFF;
+    font-family: arial;    
+    font-size: 10pt;
+    textRollOverColor: #FF0000;
+}
+/*
+InfoSymbolContainer
+{
+    backgroundColor: #333333;
+    backgroundAlpha: 0.9;
+    font-family:arial;
+    color: #FFFFFF;
+}
+
+*/
+.versionNumber
+{
+	text-align: center;
+	color: #FFFFFF;
+	font-family: arial;
+	text-align: center;
+	background-alpha:0.0;
+}
+
+/* 
+	Slightly modified version of RecordCanvas from FlexViewer 
+	For Sending New Tweets section of the GUI
+*/
+.RecordCanvas2
+{
+   borderStyle: solid;
+   borderColor: #FF0000;
+   borderAlpha: 0.5;
+   borderThickness: 1;
+   cornerRadius: 4;
+   backgroundColor: #737373;
+   background-alpha: 0.6;
+}
+
+.horizontalRuleTweetDivider
+{
+	stroke-color:#FFFFFF;
+	shadow-color:#FF0000;
+	stroke-width:1pt;
+}

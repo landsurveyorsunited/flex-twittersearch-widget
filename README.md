@@ -53,8 +53,7 @@ IMPORTANT: If you don't add a proxy directory, then when you go to run/debug the
 
 ###Option #2: Deploy Immediately Option
 
-The bin-release folder contains a precompiled version of the widget that's ready to be dropped
-onto a web server. You'll still need to configure twittersearch.xml, FlexViewer's config.xml, and set up the OAuth proxy.
+The precompiled folder of the repo contains a precompiled version of the widget that's ready to be dropped onto a web server. You'll still need to configure twittersearch.xml, FlexViewer's config.xml, and set up the OAuth proxy.
 
 ##Configuring and Testing the OAuth Proxy (REQUIRED)
 
