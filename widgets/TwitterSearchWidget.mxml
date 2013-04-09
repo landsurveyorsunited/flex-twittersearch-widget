@@ -69,6 +69,7 @@
 			import com.esri.ags.layers.GraphicsLayer;
 			import com.esri.ags.symbols.SimpleMarkerSymbol;
 			import com.esri.ags.utils.GraphicUtil;
+			import com.esri.ags.utils.JSONUtil;
 			import com.esri.ags.utils.WebMercatorUtil;
 			
 			import flash.utils.getTimer;
@@ -846,20 +847,34 @@
 			
 			private function oauthVerifiedHandler(event:TwitterOauthEvent):void
 			{
-				
-				if(event.type == TwitterOauthEvent.VERIFIED)
+				var signedOut:String = null;
+
+				try
 				{
-					trace("aothVerifiedHandler: creds have been verified.");
+					var json:Object = JSONUtil.decode(event.data); 
+					signedOut = json.signedout;
+				}
+				catch(error:Error)
+				{
+					oauthVerficationFailedHandler(event);
+					trace("oauthVerifiedHandler(): " + error.getStackTrace());
+				}
+				
+				if(event.type == TwitterOauthEvent.VERIFIED && signedOut != "true")
+				{															
 					drawIcon.enabled = true;
 					loginTwitterButton.label = "Logout";
 					_tdm.isLoggedIn = true;
 					masterMsgBox.msgText = "Status: Logged into Twitter.";
+					trace("aothVerifiedHandler: creds have been verified.");
+
 				}
 				else
 				{
 					drawIcon.enabled = false;
 					_tdm.isLoggedIn = false;
 					loginTwitterButton.label = "Login";
+					masterMsgBox.msgText = "Status: NOT logged into Twitter";
 					Alert.show("Log into Twitter via Settings > Login","TwitterSearch Widget");
 				}
 			}

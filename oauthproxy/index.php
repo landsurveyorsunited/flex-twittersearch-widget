@@ -1,17 +1,20 @@
 <?php
 
-//Version 2.0 - Modifications by AndyG. 4/2013
+//Version 2.1 - Modifications by AndyG. 4/2013
 //Changes
-//- Added error detection for json_decode
-//- Added functionality to fully delete cookie programmatically
+//- added encryption
 
 // Load required lib files.
 session_start();
 require_once('twitteroauth/twitteroauth.php');
-require_once('config.php');
+require_once('config.php');     
+require_once('twitteroauth/Encrypt.php');
 header('Content-Type: application/json');
 
 $access_token = false;
+$key = base64_decode(ENCRYPTION_KEY);
+$iv = base64_decode(IV);
+$encrypt = new Encrypt($key,$iv,DEFAULT_TIME_ZONE);
 
 if(isset($_COOKIE[OAUTH_COOKIE])){
     // get access token from cookie
@@ -50,9 +53,25 @@ if(isset($_COOKIE[OAUTH_COOKIE])){
 
 // if token exists
 if (isset($access_token['oauth_token']) && isset($access_token['oauth_token_secret'])) {
-    // Create a TwitterOauth object with consumer/user tokens.
-    $connection = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, $access_token['oauth_token'], $access_token['oauth_token_secret']);
-    // if invalid response
+
+	//**************************
+	// FOR TESTING
+	//	$token = base64_encode( $encrypt->encrypt($access_token['oauth_token']));
+	//	$token_secret = base64_encode( $encrypt->encrypt($access_token['oauth_token_secret']));	
+	//  $oauth_token = $encrypt->decrypt(base64_decode($token)); 
+	//		echo "oauth ". (string)trim($oauth_token).",".$access_token['oauth_token'];
+	//	$oauth_token_secret = $encrypt->decrypt(base64_decode($token_secret)); 
+	//		echo "\n\nsecret ". $oauth_token_secret.", ".$access_token['oauth_token_secret']."\n\n";
+	//**************************
+
+    $oauth_token = $encrypt->decrypt(base64_decode($access_token['oauth_token'])); echo "oauth ". (string)trim($oauth_token);
+	$oauth_token_secret = $encrypt->decrypt(base64_decode($access_token['oauth_token_secret'])); echo "\n\nsecret ". $oauth_token_secret."\n\n";
+    $connection = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, (string)trim($oauth_token), (string)trim($oauth_token_secret));
+    // if invalid response	
+	// Create a TwitterOauth object with consumer/user tokens.
+    //$connection = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, $access_token['oauth_token'], $access_token['oauth_token_secret']);
+    
+	// if invalid response
     if ($connection->http_code === 200 || $connection->http_code === 401) {
         $content = array('signedout'=>true);
     }
@@ -109,7 +128,7 @@ if (isset($access_token['oauth_token']) && isset($access_token['oauth_token_secr
         }
         // if errors, signed out
         if (isset($content->errors) && count($content->errors)) {
-            $content = array('signedout'=>true);
+            $content = array('signedout'=>true,'error'=>$content->errors); 
         }
     }
 } else {

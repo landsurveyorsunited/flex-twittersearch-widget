@@ -228,7 +228,11 @@ class OAuthRequest {
 
   function __construct($http_method, $http_url, $parameters=NULL) {
     @$parameters or $parameters = array();
+	
+		//echo "params: " .var_dump($parameters)."\n\n";
+	
     $parameters = array_merge( OAuthUtil::parse_parameters(parse_url($http_url, PHP_URL_QUERY)), $parameters);
+	
     $this->parameters = $parameters;
     $this->http_method = $http_method;
     $this->http_url = $http_url;

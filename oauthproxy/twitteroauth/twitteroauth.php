@@ -160,9 +160,9 @@ class TwitterOAuth {
   /**
    * GET wrapper for oAuthRequest.
    */
-  function get($url, $parameters = array()) {
+  function get($url, $parameters = array()) { 		
     $response = $this->oAuthRequest($url, 'GET', $parameters);
-    if ($this->format === 'json' && $this->decode_json) {
+    if ($this->format === 'json' && $this->decode_json) { 
       return json_decode($response);
     }
     return $response;
