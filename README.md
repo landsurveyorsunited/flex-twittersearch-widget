@@ -5,15 +5,15 @@ This widget is for monitoring Tweets within a specific geographic area. It was d
 
 ####Main screen
 
-![App](https://raw.github.com/andygup/flex-twittersearch-widget/master/main_screen.png)
+![App](https://raw.github.com/esri/flex-twittersearch-widget/master/main_screen.png)
 
 ####Settings screen
 
-![App](https://raw.github.com/andygup/flex-twittersearch-widget/master/settings.png)
+![App](https://raw.github.com/esri/flex-twittersearch-widget/master/settings.png)
 
 ####Search results
 
-![App](https://raw.github.com/andygup/flex-twittersearch-widget/master/search_result.png)
+![App](https://raw.github.com/esri/flex-twittersearch-widget/master/search_result.png)
 
 
 ##Installation
