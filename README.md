@@ -5,15 +5,15 @@ This widget is designed to monitoring Tweets withing a specific geographic area 
 
 ####Main screen
 
-![App](https://raw.github.com/andygup/flex-twitter-search-widget/master/main_screen.png)
+![App](https://raw.github.com/andygup/flex-twittersearch-widget/master/main_screen.png)
 
 ####Settings screen
 
-![App](https://raw.github.com/andygup/flex-twitter-search-widget/master/settings.png)
+![App](https://raw.github.com/andygup/flex-twittersearch-widget/master/settings.png)
 
 ####Search results
 
-![App](https://raw.github.com/andygup/flex-twitter-search-widget/master/search_result.png)
+![App](https://raw.github.com/andygup/flex-twittersearch-widget/master/search_result.png)
 
 
 ##Installation
@@ -35,13 +35,13 @@ This widget is designed to monitoring Tweets withing a specific geographic area 
 
 3) Configure twittersearch.xml to point to the location of your TwitterSearch ouath proxy. The project won't work without this. These have been included with your download in the /oauthproxy directory. 
 
-4) Install PHP OAuth proxy. As of May 2013, Twitter will require all applications to use OAuth authentication. Versions of the TwitterSearch widget prioer to v4 used un-authenticated GET requests and will stop working as of May 2013.
+4) Install PHP OAuth proxy. As of May 2013, Twitter will require all applications to use OAuth authentication. Versions of the TwitterSearch widget prioer to v4 used un-authenticated GET requests and will stop working as of May 2013. Here's the link to the [Twitter Search API doc](https://dev.twitter.com/docs/api/1.1/get/search/tweets).
 
 **IMPORTANT: ONLY a PHP proxy is available as of v4.**
 
 NOTE: Mac users. You will have to seperately install [Mcrypt](http://php.net/manual/en/book.mcrypt.php) libraries to test the proxy.
 
-NOTE: Windows Users. I believe that the PHP for Windows installs still automatically include the Mcrypt libraries: [http://windows.php.net/index.php](http://windows.php.net/index.php).
+NOTE: Windows Users. I believe that the PHP for Windows installs the Mcrypt libraries automaticallyq: [http://windows.php.net/index.php](http://windows.php.net/index.php).
 
 The widget won't work without this and you'll see an error when you try to run the widget. You do not have to recompile if you get the wrong proxy url. Simply change location in the xml, save the file,then restart the browser tab or window and the new proxy location should take effect. Sometimes, a user may have to flush their browser to ensure the changes took effect.
    
@@ -82,14 +82,14 @@ The proxy REQUIRES PHP and the Mcrypt library be installed. Mycrypt is typically
 If you simply can't get encryption to work then you can do the following (NOT RECOMMENDED and totally unsupported) steps. Most problems with encryption will stem from the Mcrypt library not being loaded.
 
 - index.php comment out lines 15 thru 18 as well as 68, 69 and 70. Uncomment line 73. You might also have to comment out the require_once that points to Encrypt.php.
-
+<code><pre>
 	//$oauth_token = $encrypt->decrypt(base64_decode($access_token['oauth_token'])); echo "oauth ". (string)trim($oauth_token);
 	//$oauth_token_secret = $encrypt->decrypt(base64_decode($access_token['oauth_token_secret'])); echo "\n\nsecret ". $oauth_token_secret."\n\n";
     //$connection = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, (string)trim($oauth_token), (string)trim($oauth_token_secret));
 
 	// Create a TwitterOauth object with consumer/user tokens.
     $connection = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, $access_token['oauth_token'], $access_token['oauth_token_secret']);
-    
+</pre></code>    
 
 - callback.php comment out the require_once pointing to Encrypt.php. Comment out lines 29, 30 and 31. Comment out lines 61 - 66.
 
@@ -103,7 +103,7 @@ If you simply can't get encryption to work then you can do the following (NOT RE
 
 - Web Server to deploy the application either Apache or IIS
 
-- The ArcGIS Flex Viewer: h[http://resources.arcgis.com/en/communities/flex-viewer/index.html](http://resources.arcgis.com/en/communities/flex-viewer/index.html)
+- The ArcGIS Flex Viewer: [http://resources.arcgis.com/en/communities/flex-viewer/index.html](http://resources.arcgis.com/en/communities/flex-viewer/index.html)
 
 - Flash Player 11.6 or greater
 
@@ -111,9 +111,9 @@ If you simply can't get encryption to work then you can do the following (NOT RE
 
 - as3corelib.swc which is available in the root directory of the project.
 
-- NOTE: The proxy included with this widget are not compatible as replacements for the Flex Viewer's own proxies. 
+- NOTE: The proxy included with this widget is not compatible as replacements for the Flex Viewer's own proxies. 
 
-- Special NOTE: Twitter is subject ro rate limiting. 
+- Special NOTE: Twitter is subject to rate limiting. More details here [https://dev.twitter.com/docs/api/1.1/get/search/tweets](https://dev.twitter.com/docs/api/1.1/get/search/tweets) 
 
 [](Esri Tags: FlexViewer Flex Widget)
 [](Esri Language: ActionScript)
