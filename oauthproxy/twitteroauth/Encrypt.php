@@ -50,7 +50,7 @@ class Encrypt{
 	
 	public function get_IV(){
 		$size = mcrypt_get_iv_size(MCRYPT_CAST_256, MCRYPT_MODE_CFB);
-		return mcrypt_create_iv($size, MCRYPT_DEV_URANDOM);
+		return base64_encode(mcrypt_create_iv($size, MCRYPT_RAND));
 	}
 }
 ?>
