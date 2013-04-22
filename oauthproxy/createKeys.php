@@ -1,7 +1,7 @@
 <?php
   session_start();
   require_once('config.php');
-  require_once('twitteroauth/Encrypt.php');
+  require_once('Encrypt.php');
   header('Content-Type: application/json');
 
   $test = new Encrypt(null,null,DEFAULT_TIME_ZONE);

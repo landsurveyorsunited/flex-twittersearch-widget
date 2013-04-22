@@ -35,15 +35,15 @@ This widget is for monitoring Tweets within a specific geographic area. It was d
 
 3) Configure twittersearch.xml to point to the location of your TwitterSearch ouath proxy. The project won't work without this. These have been included with your download in the /oauthproxy directory. 
 
-4) Install PHP OAuth proxy. As of May 2013, Twitter will require all applications to use OAuth authentication. Versions of the TwitterSearch widget prioer to v4 used un-authenticated GET requests and will stop working as of May 2013. Here's the link to the [Twitter Search API doc](https://dev.twitter.com/docs/api/1.1/get/search/tweets).
+4) Install PHP OAuth proxy. As of May 2013, Twitter will require all applications to use OAuth authentication. Versions of the TwitterSearch widget prior to v4 used un-authenticated GET requests and will stop working as of May 2013. Here's the link to the [Twitter Search API doc](https://dev.twitter.com/docs/api/1.1/get/search/tweets).
 
 **IMPORTANT: ONLY a PHP proxy is available as of v4.**
 
 NOTE: Mac users. You will have to seperately install [Mcrypt](http://php.net/manual/en/book.mcrypt.php) libraries to test the proxy.
 
-NOTE: Windows Users. I believe that the PHP for Windows installs the Mcrypt libraries automaticallyq: [http://windows.php.net/index.php](http://windows.php.net/index.php).
+NOTE: Windows Users. I believe that the PHP for Windows installs the Mcrypt libraries automatically: [http://windows.php.net/index.php](http://windows.php.net/index.php).
 
-The widget won't work without this and you'll see an error when you try to run the widget. You do not have to recompile if you get the wrong proxy url. Simply change location in the xml, save the file,then restart the browser tab or window and the new proxy location should take effect. Sometimes, a user may have to flush their browser to ensure the changes took effect.
+The widget won't work without this OAuth proxy and you'll see an error when you try to run the widget. You do not have to recompile if you have the wrong proxy url set in the widgets config.xml. Simply change location in the file, save the file,then restart the application and the new proxy location should take effect. Sometimes, a user may have to flush their browser to ensure the changes took effect.
    
 IMPORTANT: If you don't add a proxy directory, then when you go to run/debug the project it will throw an error. Once you set up the proxy this error will go away.
 
@@ -57,7 +57,7 @@ The precompiled folder of the repo contains a precompiled version of the widget 
 
 ##Configuring and Testing the OAuth Proxy (REQUIRED)
 
-The proxy REQUIRES PHP and the Mcrypt library be installed. Mycrypt is typically installed when you use PHP for Windows. Mac users it might be easier to install PHP for Windows on a Windows Virtual Machine than go through the convolutions of installing Mycrypt on your Mac.
+The proxy REQUIRES PHP and the Mcrypt library be installed. Mycrypt is typically installed when you use PHP for Windows. Mac users it might be easier to install PHP for Windows on a Windows Virtual Machine than go through the convolutions of installing Mycrypt on your Mac, or installing MAMP.
 
 ###Setting up Twitter Developer Account
 - You WILL need a [Twitter Developer Account](https://dev.twitter.com/).
@@ -71,15 +71,16 @@ The proxy REQUIRES PHP and the Mcrypt library be installed. Mycrypt is typically
 
 ###Configure the proxy
 
-- Edit test.php by commenting out everything but the last two lines of code for generating the Random Key and IV. Run createKey.php to get your Key and IV. 
+- Run createKey.php to get your Key and IV. OAuth PHP cookies are encrypted by best practice. A copy of the encryption library is available in this repo and maintained here: [https://github.com/andygup/php-cookie-encryption-lib](https://github.com/andygup/php-cookie-encryption-lib).
 - Copy the Key and IV into config.php.
 - Set the timezone in config.php.
+- Set the OAUTH_COOKIE_DOMAIN and OAUTH_CALLBACK in config.php. The default settings in the file show you the settings for testing locally.
 - Run test.php. If everything is setup properly it should run with no errors.
 - Sign into OAuth using sign_in.php
 - Run the following command in your browser. If it fails to return values then something isn't set up correctly: [http://your_domain_name/oauthproxy/?cmd=search&geocode=34.26847173704432%2C-118.02937514220592%2C40mi&count=40&nocache=Thu%20Apr%204%2018](http://<your domain>/oauthproxy/?cmd=search&geocode=34.26847173704432%2C-118.02937514220592%2C40mi&count=40&nocache=Thu%20Apr%204%2018)
 - Once this is configured you should be good to try and run the TwitterSearch widget inside FlexViewer.
 
-If you simply can't get encryption to work then you can do the following (NOT RECOMMENDED and totally unsupported) steps. Most problems with encryption will stem from the Mcrypt library not being loaded.
+If you simply can't get encryption to work then you can do the following (**NOT RECOMMENDED** and totally unsupported) steps. Most problems with encryption will stem from the Mcrypt library not being loaded.
 
 - index.php comment out lines 15 thru 18 as well as 68, 69 and 70. Uncomment line 73. You might also have to comment out the require_once that points to Encrypt.php.
 <code><pre>
@@ -99,7 +100,7 @@ If you simply can't get encryption to work then you can do the following (NOT RE
 
 - The ArcGIS Flex API v3.x SDK which includes the swc library. This can be downloaded here: [http://resources.arcgis.com/en/communities/flex-api/](http://resources.arcgis.com/en/communities/flex-api/)
 
-- Internet access to the ArcGIS Online sample servers.
+- Internet access to the ArcGIS Online sample map servers.
 
 - Web Server to deploy the application either Apache or IIS
 
